@@ -6,12 +6,14 @@ import {
   demoPoll,
   demoStudentWorks,
 } from "@/data/content";
+import { defaultSiteSettings } from "@/data/site-settings";
 import type {
   CalendarEvent,
   GalleryItem,
   NewsArticle,
   Notice,
   Poll,
+  SiteSettings,
   StudentWorkItem,
 } from "@/types/content";
 
@@ -30,6 +32,7 @@ export type TemporaryContentStore = {
   notices: Notice[];
   polls: Poll[];
   pollVotes: Record<string, string[]>;
+  siteSettings: SiteSettings;
 };
 
 function isBrowser() {
@@ -49,6 +52,7 @@ export function createDefaultTemporaryContentStore(): TemporaryContentStore {
     notices: cloneValue(demoNotices),
     polls: [cloneValue(demoPoll)],
     pollVotes: {},
+    siteSettings: cloneValue(defaultSiteSettings),
   };
 }
 
@@ -66,6 +70,10 @@ function normalizeStore(store: Partial<TemporaryContentStore> | null | undefined
       store?.pollVotes && typeof store.pollVotes === "object" && !Array.isArray(store.pollVotes)
         ? store.pollVotes
         : defaults.pollVotes,
+    siteSettings:
+      store?.siteSettings && typeof store.siteSettings === "object"
+        ? { ...defaults.siteSettings, ...store.siteSettings }
+        : defaults.siteSettings,
   };
 }
 

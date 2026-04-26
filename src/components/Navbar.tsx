@@ -1,18 +1,22 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Menu, Newspaper, X } from "lucide-react";
+import { defaultSiteSettings } from "@/data/site-settings";
+import { useSiteSettings } from "@/hooks/use-site-content";
 import { navLinks } from "@/lib/site-config";
 
 const Navbar = () => {
   const [open, setOpen] = useState(false);
   const location = useLocation();
+  const { data } = useSiteSettings();
+  const settings = data ?? defaultSiteSettings;
 
   return (
     <nav className="bg-primary sticky top-0 z-50 shadow-lg">
       <div className="container flex items-center justify-between h-14">
         <Link to="/" className="flex items-center gap-2 text-primary-foreground font-display text-lg font-bold tracking-wide">
           <Newspaper className="w-5 h-5" />
-          Jornal Marizelia
+          {settings.siteTitle}
         </Link>
 
         <ul className="hidden md:flex items-center gap-1">

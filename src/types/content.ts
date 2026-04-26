@@ -97,6 +97,22 @@ export interface PollResult {
   source: "demo" | "supabase" | "temporary";
 }
 
+export interface SiteSettings {
+  siteTitle: string;
+  siteDescription: string;
+  heroTagline: string;
+  schoolName: string;
+  schoolAddress: string;
+  contactEmail: string;
+  contactPhone: string;
+  instagramUrl: string;
+  facebookUrl: string;
+  youtubeUrl: string;
+  editorialTeam: string[];
+  copyrightText: string;
+  updatedAt?: string;
+}
+
 export interface NewsArticleInput {
   id?: string;
   slug: string;
@@ -175,6 +191,8 @@ export interface PollInput {
   closesAt: string;
   options: PollOptionInput[];
 }
+
+export type SiteSettingsInput = SiteSettings;
 
 export interface SupabaseSetupStatus {
   configured: boolean;

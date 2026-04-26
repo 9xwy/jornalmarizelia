@@ -6,6 +6,7 @@ import {
   fetchNewsArticleBySlug,
   fetchNewsArticles,
   fetchNotices,
+  fetchSiteSettings,
   fetchStudentWorkBySlug,
   fetchStudentWorks,
   fetchSupabaseSetupStatus,
@@ -74,5 +75,12 @@ export function useSupabaseSetupStatus() {
   return useQuery({
     queryKey: queryKeys.setup,
     queryFn: fetchSupabaseSetupStatus,
+  });
+}
+
+export function useSiteSettings() {
+  return useQuery({
+    queryKey: queryKeys.siteSettings,
+    queryFn: fetchSiteSettings,
   });
 }

@@ -11,6 +11,7 @@ O projeto funciona como um jornal digital escolar. A area publica usa conteudo d
 - Pagina inicial editorial com destaques, agenda, galeria, trabalhos e avisos.
 - Rotas dedicadas para noticias, calendario, galeria, trabalhos dos alunos e mural de avisos.
 - Painel administrativo para CRUD de conteudo e enquetes.
+- Configuracoes editaveis do site para rodape, contato, equipe editorial e redes sociais.
 - Upload de imagens pelo Supabase Storage no painel administrativo.
 - Fallback com conteudo demonstrativo para ambientes sem banco configurado.
 - Headers de seguranca e fallback de SPA preparados para Vercel, Netlify e Cloudflare Pages.

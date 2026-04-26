@@ -7,6 +7,7 @@ import type {
   NewsArticleInput,
   NoticeInput,
   PollInput,
+  SiteSettingsInput,
   StudentWorkInput,
 } from "@/types/content";
 
@@ -24,6 +25,20 @@ function requireSafeImageUrl(value: string) {
   const safeUrl = sanitizeExternalUrl(trimmed);
   if (!safeUrl) {
     throw new Error("Use apenas URLs de imagem http/https validas.");
+  }
+
+  return safeUrl;
+}
+
+function normalizeOptionalUrl(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return "";
+  }
+
+  const safeUrl = sanitizeExternalUrl(trimmed);
+  if (!safeUrl) {
+    throw new Error("Use apenas URLs http/https validas.");
   }
 
   return safeUrl;
@@ -118,6 +133,22 @@ const pollSchema = z.object({
     .min(2),
 });
 
+const siteSettingsSchema = z.object({
+  siteTitle: z.string().min(3).max(80),
+  siteDescription: z.string().min(10).max(260),
+  heroTagline: z.string().min(5).max(160),
+  schoolName: z.string().min(2).max(120),
+  schoolAddress: z.string().max(180),
+  contactEmail: z.string().max(120),
+  contactPhone: z.string().max(40),
+  instagramUrl: z.string().max(2048),
+  facebookUrl: z.string().max(2048),
+  youtubeUrl: z.string().max(2048),
+  editorialTeam: z.array(z.string().min(2).max(120)).max(12),
+  copyrightText: z.string().min(5).max(180),
+  updatedAt: z.string().optional(),
+});
+
 export function normalizeTone(value: string | null | undefined) {
   return coerceAllowedValue(value, toneOptions, toneOptions[0]);
 }
@@ -200,5 +231,28 @@ export function validatePollInput(input: PollInput): PollInput {
     description: sanitizeMultilineText(input.description, 500),
     closesAt,
     options,
+  });
+}
+
+export function validateSiteSettingsInput(input: SiteSettingsInput): SiteSettingsInput {
+  const editorialTeam = input.editorialTeam
+    .map((item) => sanitizeSingleLineText(item, 120))
+    .filter(Boolean)
+    .slice(0, 12);
+
+  return siteSettingsSchema.parse({
+    ...input,
+    siteTitle: sanitizeSingleLineText(input.siteTitle, 80),
+    siteDescription: sanitizeMultilineText(input.siteDescription, 260),
+    heroTagline: sanitizeSingleLineText(input.heroTagline, 160),
+    schoolName: sanitizeSingleLineText(input.schoolName, 120),
+    schoolAddress: sanitizeSingleLineText(input.schoolAddress, 180),
+    contactEmail: sanitizeSingleLineText(input.contactEmail, 120),
+    contactPhone: sanitizeSingleLineText(input.contactPhone, 40),
+    instagramUrl: normalizeOptionalUrl(input.instagramUrl),
+    facebookUrl: normalizeOptionalUrl(input.facebookUrl),
+    youtubeUrl: normalizeOptionalUrl(input.youtubeUrl),
+    editorialTeam,
+    copyrightText: sanitizeSingleLineText(input.copyrightText, 180),
   });
 }

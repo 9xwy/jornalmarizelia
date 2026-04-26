@@ -16,6 +16,27 @@ create table if not exists public.allowed_admin_emails (
   created_at timestamptz not null default timezone('utc', now())
 );
 
+create table if not exists public.site_settings (
+  id text primary key default 'main' check (id = 'main'),
+  site_title text not null default 'Jornal Marizelia',
+  site_description text not null default 'Portal estudantil da Escola Municipal Marizelia com cobertura escolar, agenda, producoes dos alunos e avisos.',
+  hero_tagline text not null default 'Feito por alunos, para alunos, familias e comunidade',
+  school_name text not null default 'Escola Municipal Marizelia',
+  school_address text default 'Rua da Educacao, 123 - Centro',
+  contact_email text default 'contato@jornalmarizelia.edu.br',
+  contact_phone text default '',
+  instagram_url text default '',
+  facebook_url text default '',
+  youtube_url text default '',
+  editorial_team text[] not null default array[
+    'Prof. Maria Helena - Orientadora',
+    'Ana Clara - Editora-chefe',
+    'Lucas Mendes - Editor de esportes'
+  ]::text[],
+  copyright_text text not null default 'Todos os direitos reservados.',
+  updated_at timestamptz not null default timezone('utc', now())
+);
+
 create or replace function public.is_allowed_admin()
 returns boolean
 language sql
@@ -133,6 +154,42 @@ create table if not exists public.poll_votes (
   unique (poll_id, voter_token)
 );
 
+insert into public.site_settings (
+  id,
+  site_title,
+  site_description,
+  hero_tagline,
+  school_name,
+  school_address,
+  contact_email,
+  contact_phone,
+  instagram_url,
+  facebook_url,
+  youtube_url,
+  editorial_team,
+  copyright_text
+)
+values (
+  'main',
+  'Jornal Marizelia',
+  'Portal estudantil da Escola Municipal Marizelia com cobertura escolar, agenda, producoes dos alunos e avisos.',
+  'Feito por alunos, para alunos, familias e comunidade',
+  'Escola Municipal Marizelia',
+  'Rua da Educacao, 123 - Centro',
+  'contato@jornalmarizelia.edu.br',
+  '',
+  '',
+  '',
+  '',
+  array[
+    'Prof. Maria Helena - Orientadora',
+    'Ana Clara - Editora-chefe',
+    'Lucas Mendes - Editor de esportes'
+  ]::text[],
+  'Todos os direitos reservados.'
+)
+on conflict (id) do nothing;
+
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values (
   'jornal-media',
@@ -180,6 +237,9 @@ check (cover_image_url is null or cover_image_url ~* '^https?://[^[:space:]]+$')
 drop trigger if exists news_posts_set_updated_at on public.news_posts;
 create trigger news_posts_set_updated_at before update on public.news_posts for each row execute function public.set_updated_at();
 
+drop trigger if exists site_settings_set_updated_at on public.site_settings;
+create trigger site_settings_set_updated_at before update on public.site_settings for each row execute function public.set_updated_at();
+
 drop trigger if exists gallery_items_set_updated_at on public.gallery_items;
 create trigger gallery_items_set_updated_at before update on public.gallery_items for each row execute function public.set_updated_at();
 
@@ -199,6 +259,7 @@ drop trigger if exists poll_options_set_updated_at on public.poll_options;
 create trigger poll_options_set_updated_at before update on public.poll_options for each row execute function public.set_updated_at();
 
 alter table public.allowed_admin_emails enable row level security;
+alter table public.site_settings enable row level security;
 alter table public.news_posts enable row level security;
 alter table public.gallery_items enable row level security;
 alter table public.calendar_events enable row level security;
@@ -212,6 +273,7 @@ revoke all on all tables in schema public from anon, authenticated;
 revoke all on all sequences in schema public from anon, authenticated;
 grant usage on schema public to anon, authenticated;
 
+grant select on public.site_settings to anon, authenticated;
 grant select on public.news_posts to anon, authenticated;
 grant select on public.gallery_items to anon, authenticated;
 grant select on public.calendar_events to anon, authenticated;
@@ -220,6 +282,7 @@ grant select on public.notices to anon, authenticated;
 grant select on public.polls to anon, authenticated;
 grant select on public.poll_options to anon, authenticated;
 
+grant select, insert, update, delete on public.site_settings to authenticated;
 grant select, insert, update, delete on public.news_posts to authenticated;
 grant select, insert, update, delete on public.gallery_items to authenticated;
 grant select, insert, update, delete on public.calendar_events to authenticated;
@@ -244,6 +307,21 @@ for all
 to authenticated
 using (public.is_allowed_admin())
 with check (public.is_allowed_admin());
+
+drop policy if exists "public read site settings" on public.site_settings;
+create policy "public read site settings"
+on public.site_settings
+for select
+to anon, authenticated
+using (id = 'main');
+
+drop policy if exists "admin manage site settings" on public.site_settings;
+create policy "admin manage site settings"
+on public.site_settings
+for all
+to authenticated
+using (public.is_allowed_admin())
+with check (id = 'main' and public.is_allowed_admin());
 
 drop policy if exists "public read published news" on public.news_posts;
 create policy "public read published news"
@@ -464,4 +542,5 @@ $$;
 grant execute on function public.vote_for_poll_option(uuid, uuid, text) to anon, authenticated;
 
 comment on table public.allowed_admin_emails is 'Adicione aqui os emails que podem usar o painel admin.';
+comment on table public.site_settings is 'Configuracoes editaveis do nome, rodape, contato, equipe editorial e redes sociais do site.';
 comment on function public.vote_for_poll_option(uuid, uuid, text) is 'Executa um voto publico com protecao por token local.';

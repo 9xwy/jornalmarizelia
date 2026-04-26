@@ -7,6 +7,7 @@ import {
   demoPoll,
   demoStudentWorks,
 } from "@/data/content";
+import { defaultSiteSettings } from "@/data/site-settings";
 import {
   normalizeTone,
   validateCalendarEventInput,
@@ -14,6 +15,7 @@ import {
   validateNewsArticleInput,
   validateNoticeInput,
   validatePollInput,
+  validateSiteSettingsInput,
   validateStudentWorkInput,
 } from "@/lib/content-validation";
 import { sanitizeExternalUrl, sanitizeMultilineText, sanitizeSingleLineText } from "@/lib/security";
@@ -40,6 +42,8 @@ import type {
   PollInput,
   PollOption,
   PollResult,
+  SiteSettings,
+  SiteSettingsInput,
   StudentWorkInput,
   StudentWorkItem,
   SupabaseSetupStatus,
@@ -54,6 +58,7 @@ export const queryKeys = {
   workBySlug: (slug: string) => ["works", slug] as const,
   notices: ["notices"] as const,
   poll: ["poll"] as const,
+  siteSettings: ["site-settings"] as const,
   setup: ["supabase-setup"] as const,
   adminNews: ["admin", "news"] as const,
   adminGallery: ["admin", "gallery"] as const,
@@ -61,6 +66,7 @@ export const queryKeys = {
   adminWorks: ["admin", "works"] as const,
   adminNotices: ["admin", "notices"] as const,
   adminPolls: ["admin", "polls"] as const,
+  adminSiteSettings: ["admin", "site-settings"] as const,
 };
 
 type NewsRow = {
@@ -153,6 +159,23 @@ type PollRow = {
   created_at: string;
   updated_at: string;
   poll_options?: PollOptionRow[] | null;
+};
+
+type SiteSettingsRow = {
+  id: string;
+  site_title: string;
+  site_description: string;
+  hero_tagline: string;
+  school_name: string;
+  school_address: string | null;
+  contact_email: string | null;
+  contact_phone: string | null;
+  instagram_url: string | null;
+  facebook_url: string | null;
+  youtube_url: string | null;
+  editorial_team: string[] | null;
+  copyright_text: string;
+  updated_at: string;
 };
 
 class SupabaseConfigError extends Error {}
@@ -281,6 +304,26 @@ function mapPollRow(row: PollRow): Poll {
   };
 }
 
+function mapSiteSettingsRow(row: SiteSettingsRow): SiteSettings {
+  return {
+    siteTitle: sanitizeSingleLineText(row.site_title, 80),
+    siteDescription: sanitizeMultilineText(row.site_description, 260),
+    heroTagline: sanitizeSingleLineText(row.hero_tagline, 160),
+    schoolName: sanitizeSingleLineText(row.school_name, 120),
+    schoolAddress: sanitizeSingleLineText(row.school_address ?? "", 180),
+    contactEmail: sanitizeSingleLineText(row.contact_email ?? "", 120),
+    contactPhone: sanitizeSingleLineText(row.contact_phone ?? "", 40),
+    instagramUrl: sanitizeExternalUrl(row.instagram_url) ?? "",
+    facebookUrl: sanitizeExternalUrl(row.facebook_url) ?? "",
+    youtubeUrl: sanitizeExternalUrl(row.youtube_url) ?? "",
+    editorialTeam: (row.editorial_team ?? [])
+      .map((item) => sanitizeSingleLineText(item, 120))
+      .filter(Boolean),
+    copyrightText: sanitizeSingleLineText(row.copyright_text, 180),
+    updatedAt: row.updated_at,
+  };
+}
+
 function isoOrNow(value: string | null | undefined) {
   if (!value) {
     return new Date().toISOString();
@@ -388,15 +431,6 @@ export async function fetchSupabaseSetupStatus(): Promise<SupabaseSetupStatus> {
   const db = requireSupabase();
   const { error } = await db.from("news_posts").select("id").limit(1);
 
-  if (!error) {
-    return {
-      configured: true,
-      healthy: true,
-      missingSchema: false,
-      message: "Conexao com o Supabase pronta.",
-    };
-  }
-
   if (isMissingSchemaError(error)) {
     return {
       configured: true,
@@ -406,12 +440,61 @@ export async function fetchSupabaseSetupStatus(): Promise<SupabaseSetupStatus> {
     };
   }
 
+  if (error) {
+    return {
+      configured: true,
+      healthy: false,
+      missingSchema: false,
+      message: error.message,
+    };
+  }
+
+  const { error: settingsError } = await db.from("site_settings").select("id").limit(1);
+
+  if (settingsError) {
+    return {
+      configured: true,
+      healthy: false,
+      missingSchema: isMissingSchemaError(settingsError),
+      message: isMissingSchemaError(settingsError)
+        ? "O schema do Supabase esta desatualizado. Rode novamente o arquivo supabase/schema.sql."
+        : settingsError.message,
+    };
+  }
+
   return {
     configured: true,
-    healthy: false,
+    healthy: true,
     missingSchema: false,
-    message: error.message,
+    message: "Conexao com o Supabase pronta.",
   };
+}
+
+export async function fetchSiteSettings(): Promise<SiteSettings> {
+  const temporaryStore = readTemporaryContentStore();
+  if (temporaryStore) {
+    return temporaryStore.siteSettings;
+  }
+
+  if (!supabase) {
+    return defaultSiteSettings;
+  }
+
+  const { data, error } = await supabase
+    .from("site_settings")
+    .select("*")
+    .eq("id", "main")
+    .maybeSingle();
+
+  if (error) {
+    if (isMissingSchemaError(error)) {
+      return defaultSiteSettings;
+    }
+
+    throw error;
+  }
+
+  return data ? mapSiteSettingsRow(data) : defaultSiteSettings;
 }
 
 export async function fetchNewsArticles() {
@@ -827,6 +910,10 @@ export async function fetchAdminPolls() {
   }
 
   return (data ?? []).map(mapPollRow);
+}
+
+export async function fetchAdminSiteSettings() {
+  return fetchSiteSettings();
 }
 
 export async function saveNewsArticle(input: NewsArticleInput) {
@@ -1355,6 +1442,46 @@ export async function deletePoll(id: string) {
   }
 }
 
+export async function saveSiteSettings(input: SiteSettingsInput) {
+  const validatedInput = validateSiteSettingsInput(input);
+
+  if (shouldUseTemporaryAdminSession()) {
+    return updateTemporaryStore((store) => {
+      store.siteSettings = {
+        ...validatedInput,
+        updatedAt: new Date().toISOString(),
+      };
+
+      return store.siteSettings;
+    });
+  }
+
+  const db = requireSupabase();
+  const payload = {
+    id: "main",
+    site_title: validatedInput.siteTitle,
+    site_description: validatedInput.siteDescription,
+    hero_tagline: validatedInput.heroTagline,
+    school_name: validatedInput.schoolName,
+    school_address: validatedInput.schoolAddress || null,
+    contact_email: validatedInput.contactEmail || null,
+    contact_phone: validatedInput.contactPhone || null,
+    instagram_url: validatedInput.instagramUrl || null,
+    facebook_url: validatedInput.facebookUrl || null,
+    youtube_url: validatedInput.youtubeUrl || null,
+    editorial_team: validatedInput.editorialTeam,
+    copyright_text: validatedInput.copyrightText,
+  };
+
+  const { data, error } = await db.from("site_settings").upsert(payload, { onConflict: "id" }).select("*").single();
+
+  if (error) {
+    throw error;
+  }
+
+  return mapSiteSettingsRow(data);
+}
+
 export async function seedDatabaseWithDemoContent() {
   if (shouldUseTemporaryAdminSession()) {
     writeTemporaryContentStore(createDefaultTemporaryContentStore());
@@ -1447,6 +1574,7 @@ export async function seedDatabaseWithDemoContent() {
         votes: option.votes,
       })),
     }),
+    saveSiteSettings(defaultSiteSettings),
   ]);
 }
 

@@ -1,4 +1,4 @@
-import { useState, type ChangeEvent, type ReactNode } from "react";
+import { useEffect, useState, type ChangeEvent, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   CalendarDays,
@@ -22,6 +22,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { defaultSiteSettings } from "@/data/site-settings";
 import {
   Dialog,
   DialogContent,
@@ -49,6 +50,7 @@ import {
   fetchAdminNewsArticles,
   fetchAdminNotices,
   fetchAdminPolls,
+  fetchAdminSiteSettings,
   fetchAdminStudentWorks,
   formatDateInputValue,
   formatDateTimeInputValue,
@@ -60,6 +62,7 @@ import {
   saveNewsArticle,
   saveNotice,
   savePoll,
+  saveSiteSettings,
   saveStudentWork,
   seedDatabaseWithDemoContent,
 } from "@/lib/content-api";
@@ -72,6 +75,7 @@ import type {
   NoticeInput,
   PollInput,
   PollOptionInput,
+  SiteSettingsInput,
   StudentWorkInput,
 } from "@/types/content";
 
@@ -94,6 +98,8 @@ function getErrorMessage(error: unknown) {
       location: "Local",
       question: "Pergunta",
       slug: "Slug",
+      siteDescription: "Descricao do site",
+      siteTitle: "Nome do site",
       summary: "Resumo",
       title: "Titulo",
       workType: "Tipo",
@@ -556,6 +562,7 @@ const AdminPage = () => {
   const [workDraft, setWorkDraft] = useState<StudentWorkInput>(emptyWork());
   const [noticeDraft, setNoticeDraft] = useState<NoticeInput>(emptyNotice());
   const [pollDraft, setPollDraft] = useState<PollInput>(emptyPoll());
+  const [settingsDraft, setSettingsDraft] = useState<SiteSettingsInput>(defaultSiteSettings);
   const [uploadingMediaField, setUploadingMediaField] = useState<MediaFolder | null>(null);
   const isUploadingMedia = Boolean(uploadingMediaField);
 
@@ -595,6 +602,12 @@ const AdminPage = () => {
     enabled: isAdminReady,
   });
 
+  const settingsQuery = useQuery({
+    queryKey: queryKeys.adminSiteSettings,
+    queryFn: fetchAdminSiteSettings,
+    enabled: isAdminReady,
+  });
+
   const saveNewsMutation = useMutation({ mutationFn: saveNewsArticle });
   const deleteNewsMutation = useMutation({ mutationFn: deleteNewsArticle });
   const saveGalleryMutation = useMutation({ mutationFn: saveGalleryItem });
@@ -607,7 +620,14 @@ const AdminPage = () => {
   const deleteNoticeMutation = useMutation({ mutationFn: deleteNotice });
   const savePollMutation = useMutation({ mutationFn: savePoll });
   const deletePollMutation = useMutation({ mutationFn: deletePoll });
+  const saveSettingsMutation = useMutation({ mutationFn: saveSiteSettings });
   const seedMutation = useMutation({ mutationFn: seedDatabaseWithDemoContent });
+
+  useEffect(() => {
+    if (settingsQuery.data) {
+      setSettingsDraft(settingsQuery.data);
+    }
+  }, [settingsQuery.data]);
 
   async function refreshContent(keys: readonly unknown[][]) {
     await Promise.all(keys.map((key) => queryClient.invalidateQueries({ queryKey: key })));
@@ -809,6 +829,18 @@ const AdminPage = () => {
     }
   }
 
+  async function submitSettings(event: React.FormEvent) {
+    event.preventDefault();
+
+    try {
+      await saveSettingsMutation.mutateAsync(settingsDraft);
+      toast.success("Configuracoes do site salvas com sucesso.");
+      await refreshContent([queryKeys.adminSiteSettings, queryKeys.siteSettings]);
+    } catch (error) {
+      toast.error(getErrorMessage(error));
+    }
+  }
+
   async function handleSeed() {
     try {
       await seedMutation.mutateAsync();
@@ -826,6 +858,8 @@ const AdminPage = () => {
         queryKeys.works,
         queryKeys.notices,
         queryKeys.poll,
+        queryKeys.siteSettings,
+        queryKeys.adminSiteSettings,
       ]);
     } catch (error) {
       toast.error(getErrorMessage(error));
@@ -1008,6 +1042,7 @@ const AdminPage = () => {
               <TabsTrigger value="works">Trabalhos</TabsTrigger>
               <TabsTrigger value="notices">Avisos</TabsTrigger>
               <TabsTrigger value="polls">Enquete</TabsTrigger>
+              <TabsTrigger value="settings">Site</TabsTrigger>
             </TabsList>
 
             <TabsContent value="news">
@@ -1377,6 +1412,144 @@ const AdminPage = () => {
                     </div>
                   ))}
                 </div>
+              </AdminSection>
+            </TabsContent>
+
+            <TabsContent value="settings">
+              <AdminSection
+                title="Informacoes do site"
+                description="Edite o nome, textos institucionais, contato, equipe editorial e redes sociais exibidos no site."
+                actionLabel="Restaurar padrao"
+                onAction={() => setSettingsDraft(defaultSiteSettings)}
+              >
+                {settingsQuery.isLoading ? (
+                  <div className="h-40 rounded-lg border border-border bg-muted/40 animate-pulse" />
+                ) : (
+                  <form className="grid gap-5" onSubmit={submitSettings}>
+                    <div className="grid gap-5 lg:grid-cols-2">
+                      <FormSection title="Identidade">
+                        <div className="space-y-2">
+                          <Label>Nome do site</Label>
+                          <Input
+                            value={settingsDraft.siteTitle}
+                            onChange={(event) => setSettingsDraft((prev) => ({ ...prev, siteTitle: event.target.value }))}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Descricao do site</Label>
+                          <Textarea
+                            value={settingsDraft.siteDescription}
+                            onChange={(event) => setSettingsDraft((prev) => ({ ...prev, siteDescription: event.target.value }))}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Chamada da pagina inicial</Label>
+                          <Input
+                            value={settingsDraft.heroTagline}
+                            onChange={(event) => setSettingsDraft((prev) => ({ ...prev, heroTagline: event.target.value }))}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Texto do copyright</Label>
+                          <Input
+                            value={settingsDraft.copyrightText}
+                            onChange={(event) => setSettingsDraft((prev) => ({ ...prev, copyrightText: event.target.value }))}
+                          />
+                        </div>
+                      </FormSection>
+
+                      <FormSection title="Contato">
+                        <div className="space-y-2">
+                          <Label>Nome da escola</Label>
+                          <Input
+                            value={settingsDraft.schoolName}
+                            onChange={(event) => setSettingsDraft((prev) => ({ ...prev, schoolName: event.target.value }))}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Endereco</Label>
+                          <Input
+                            value={settingsDraft.schoolAddress}
+                            onChange={(event) => setSettingsDraft((prev) => ({ ...prev, schoolAddress: event.target.value }))}
+                          />
+                        </div>
+                        <div className="grid gap-4 md:grid-cols-2">
+                          <div className="space-y-2">
+                            <Label>Email</Label>
+                            <Input
+                              value={settingsDraft.contactEmail}
+                              onChange={(event) => setSettingsDraft((prev) => ({ ...prev, contactEmail: event.target.value }))}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label>Telefone</Label>
+                            <Input
+                              value={settingsDraft.contactPhone}
+                              onChange={(event) => setSettingsDraft((prev) => ({ ...prev, contactPhone: event.target.value }))}
+                            />
+                          </div>
+                        </div>
+                      </FormSection>
+                    </div>
+
+                    <div className="grid gap-5 lg:grid-cols-2">
+                      <FormSection title="Redes sociais">
+                        <div className="space-y-2">
+                          <Label>Instagram</Label>
+                          <Input
+                            value={settingsDraft.instagramUrl}
+                            onChange={(event) => setSettingsDraft((prev) => ({ ...prev, instagramUrl: event.target.value }))}
+                            placeholder="https://instagram.com/seu-perfil"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Facebook</Label>
+                          <Input
+                            value={settingsDraft.facebookUrl}
+                            onChange={(event) => setSettingsDraft((prev) => ({ ...prev, facebookUrl: event.target.value }))}
+                            placeholder="https://facebook.com/sua-pagina"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>YouTube</Label>
+                          <Input
+                            value={settingsDraft.youtubeUrl}
+                            onChange={(event) => setSettingsDraft((prev) => ({ ...prev, youtubeUrl: event.target.value }))}
+                            placeholder="https://youtube.com/@seu-canal"
+                          />
+                        </div>
+                      </FormSection>
+
+                      <FormSection title="Equipe editorial">
+                        <div className="space-y-2">
+                          <Label>Integrantes</Label>
+                          <Textarea
+                            className="min-h-[190px]"
+                            value={settingsDraft.editorialTeam.join("\n")}
+                            onChange={(event) =>
+                              setSettingsDraft((prev) => ({
+                                ...prev,
+                                editorialTeam: event.target.value
+                                  .split("\n")
+                                  .map((item) => item.trim())
+                                  .filter(Boolean),
+                              }))
+                            }
+                          />
+                          <p className="font-body text-xs text-muted-foreground">
+                            Coloque um integrante por linha.
+                          </p>
+                        </div>
+                      </FormSection>
+                    </div>
+
+                    <DialogFooter className="gap-2 sm:space-x-0">
+                      <Button type="submit" disabled={saveSettingsMutation.isPending}>
+                        {saveSettingsMutation.isPending ? "Salvando..." : "Salvar informacoes do site"}
+                      </Button>
+                    </DialogFooter>
+                  </form>
+                )}
               </AdminSection>
             </TabsContent>
           </Tabs>
