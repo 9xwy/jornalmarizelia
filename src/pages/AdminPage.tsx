@@ -17,6 +17,7 @@ import {
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
 import { ZodError } from "zod";
+import ContentImage from "@/components/ContentImage";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -164,6 +165,252 @@ function MediaUploadField({ label, value, disabled, onUrlChange, onFileChange }:
         {disabled ? "Enviando imagem..." : MEDIA_HELP_TEXT}
       </p>
     </div>
+  );
+}
+
+function previewText(value: string, fallback: string) {
+  return value.trim() || fallback;
+}
+
+function previewDateLabel(value: string) {
+  const parsedDate = new Date(value);
+
+  if (Number.isNaN(parsedDate.getTime())) {
+    return "Data nao definida";
+  }
+
+  return formatDateTimeLabel(parsedDate.toISOString());
+}
+
+function previewDateOnlyLabel(value: string) {
+  const parsedDate = new Date(`${value}T00:00:00`);
+
+  if (Number.isNaN(parsedDate.getTime())) {
+    return "Data nao definida";
+  }
+
+  return new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+  }).format(parsedDate);
+}
+
+function EditorLayout({ children, preview }: { children: ReactNode; preview: ReactNode }) {
+  return (
+    <div className="grid gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(280px,0.85fr)] lg:items-start">
+      <div className="grid gap-4">{children}</div>
+      <div className="lg:sticky lg:top-0">{preview}</div>
+    </div>
+  );
+}
+
+function FormSection({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <section className="rounded-lg border border-border bg-muted/20 p-4 space-y-4">
+      <h3 className="font-display text-base font-semibold text-primary">{title}</h3>
+      {children}
+    </section>
+  );
+}
+
+function PreviewPanel({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <aside className="rounded-lg border border-border bg-background p-4 shadow-sm">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <p className="font-body text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Previa</p>
+        <Badge variant="outline">{title}</Badge>
+      </div>
+      {children}
+    </aside>
+  );
+}
+
+function NewsDraftPreview({ draft }: { draft: NewsArticleInput }) {
+  return (
+    <PreviewPanel title="Noticia">
+      <article className="overflow-hidden rounded-lg border border-border bg-card">
+        <div className="aspect-[16/9] bg-muted">
+          <ContentImage
+            src={draft.coverImageUrl}
+            alt={previewText(draft.title, "Imagem da noticia")}
+            tone={draft.coverTone}
+            icon={Newspaper}
+          />
+        </div>
+        <div className="space-y-3 p-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant="outline">{draft.category}</Badge>
+            <Badge className={statusBadge(draft.status)}>{draft.status}</Badge>
+            {draft.featured && <Badge className="bg-primary/10 text-primary">destaque</Badge>}
+          </div>
+          <div className="space-y-2">
+            <h3 className="break-words font-display text-2xl font-bold leading-tight text-foreground">
+              {previewText(draft.title, "Titulo da noticia")}
+            </h3>
+            <p className="break-words font-body text-sm leading-relaxed text-muted-foreground">
+              {previewText(draft.summary, "O resumo da noticia aparece aqui antes de publicar.")}
+            </p>
+          </div>
+          <p className="font-body text-xs text-muted-foreground">
+            {previewText(draft.author, "Autor")} &bull; {previewDateLabel(draft.publishedAt)}
+          </p>
+        </div>
+      </article>
+    </PreviewPanel>
+  );
+}
+
+function GalleryDraftPreview({ draft }: { draft: GalleryItemInput }) {
+  return (
+    <PreviewPanel title="Galeria">
+      <article className="overflow-hidden rounded-lg border border-border bg-card">
+        <div className="aspect-square bg-muted">
+          <ContentImage
+            src={draft.imageUrl}
+            alt={previewText(draft.title, "Imagem da galeria")}
+            tone={draft.coverTone}
+            icon={ImageIcon}
+          />
+        </div>
+        <div className="space-y-3 p-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant="outline">{previewText(draft.category, "Categoria")}</Badge>
+            <Badge className={statusBadge(draft.status)}>{draft.status}</Badge>
+            {draft.featured && <Badge className="bg-primary/10 text-primary">destaque</Badge>}
+          </div>
+          <h3 className="break-words font-display text-2xl font-bold leading-tight text-foreground">
+            {previewText(draft.title, "Titulo da imagem")}
+          </h3>
+          <p className="break-words font-body text-sm leading-relaxed text-muted-foreground">
+            {previewText(draft.caption, "A legenda da galeria aparece aqui.")}
+          </p>
+          <p className="font-body text-xs text-muted-foreground">{previewDateLabel(draft.publishedAt)}</p>
+        </div>
+      </article>
+    </PreviewPanel>
+  );
+}
+
+function WorkDraftPreview({ draft }: { draft: StudentWorkInput }) {
+  return (
+    <PreviewPanel title="Trabalho">
+      <article className="overflow-hidden rounded-lg border border-border bg-card">
+        <div className="aspect-[16/9] bg-muted">
+          <ContentImage
+            src={draft.coverImageUrl}
+            alt={previewText(draft.title, "Capa do trabalho")}
+            tone={draft.coverTone}
+            icon={PenLine}
+          />
+        </div>
+        <div className="space-y-3 p-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant="outline">{draft.workType}</Badge>
+            <Badge className={statusBadge(draft.status)}>{draft.status}</Badge>
+            {draft.featured && <Badge className="bg-primary/10 text-primary">destaque</Badge>}
+          </div>
+          <h3 className="break-words font-display text-2xl font-bold leading-tight text-foreground">
+            {previewText(draft.title, "Titulo do trabalho")}
+          </h3>
+          <p className="break-words font-body text-sm leading-relaxed text-muted-foreground">
+            {previewText(draft.excerpt, "O resumo do trabalho aparece aqui.")}
+          </p>
+          <p className="font-body text-xs text-muted-foreground">
+            {previewText(draft.author, "Autor")} &bull; {previewDateLabel(draft.publishedAt)}
+          </p>
+        </div>
+      </article>
+    </PreviewPanel>
+  );
+}
+
+function EventDraftPreview({ draft }: { draft: CalendarEventInput }) {
+  return (
+    <PreviewPanel title="Calendario">
+      <article className="rounded-lg border border-border bg-card p-4">
+        <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 text-primary">
+          <CalendarDays className="h-6 w-6" />
+        </div>
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant="outline">{previewText(draft.category, "Categoria")}</Badge>
+            <Badge className={statusBadge(draft.status)}>{draft.status}</Badge>
+            {draft.highlight && <Badge className="bg-primary/10 text-primary">destaque</Badge>}
+          </div>
+          <h3 className="break-words font-display text-2xl font-bold leading-tight text-foreground">
+            {previewText(draft.title, "Titulo do evento")}
+          </h3>
+          <p className="break-words font-body text-sm leading-relaxed text-muted-foreground">
+            {previewText(draft.description, "A descricao do evento aparece aqui.")}
+          </p>
+          <p className="font-body text-xs text-muted-foreground">
+            {previewDateOnlyLabel(draft.eventDate)} &bull; {previewText(draft.location, "Local nao informado")}
+          </p>
+        </div>
+      </article>
+    </PreviewPanel>
+  );
+}
+
+function NoticeDraftPreview({ draft }: { draft: NoticeInput }) {
+  return (
+    <PreviewPanel title="Aviso">
+      <article className="rounded-lg border border-border bg-card p-4">
+        <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 text-primary">
+          <Megaphone className="h-6 w-6" />
+        </div>
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant="outline">{draft.noticeType}</Badge>
+            <Badge className={statusBadge(draft.status)}>{draft.status}</Badge>
+            {draft.pinned && <Badge className="bg-primary/10 text-primary">fixado</Badge>}
+          </div>
+          <h3 className="break-words font-display text-2xl font-bold leading-tight text-foreground">
+            {previewText(draft.title, "Titulo do aviso")}
+          </h3>
+          <p className="break-words font-body text-sm leading-relaxed text-muted-foreground">
+            {previewText(draft.description, "A descricao do aviso aparece aqui.")}
+          </p>
+          <p className="font-body text-xs text-muted-foreground">{previewDateLabel(draft.publishedAt)}</p>
+        </div>
+      </article>
+    </PreviewPanel>
+  );
+}
+
+function PollDraftPreview({ draft }: { draft: PollInput }) {
+  const validOptions = draft.options.filter((option) => option.label.trim());
+
+  return (
+    <PreviewPanel title="Enquete">
+      <article className="rounded-lg border border-border bg-card p-4">
+        <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 text-primary">
+          <Settings2 className="h-6 w-6" />
+        </div>
+        <div className="space-y-4">
+          <div className="flex flex-wrap items-center gap-2">
+            {draft.isActive && <Badge className="bg-primary/10 text-primary">ativa</Badge>}
+            {draft.closesAt && <Badge variant="outline">fecha em {previewDateLabel(draft.closesAt)}</Badge>}
+          </div>
+          <div className="space-y-2">
+            <h3 className="break-words font-display text-2xl font-bold leading-tight text-foreground">
+              {previewText(draft.question, "Pergunta da enquete")}
+            </h3>
+            <p className="break-words font-body text-sm leading-relaxed text-muted-foreground">
+              {previewText(draft.description, "A descricao da enquete aparece aqui.")}
+            </p>
+          </div>
+          <div className="space-y-2">
+            {(validOptions.length ? validOptions : draft.options).slice(0, 5).map((option, index) => (
+              <div key={option.id ?? index} className="rounded-md border border-border bg-background px-3 py-2 font-body text-sm text-foreground">
+                {previewText(option.label, `Opcao ${index + 1}`)}
+              </div>
+            ))}
+          </div>
+        </div>
+      </article>
+    </PreviewPanel>
   );
 }
 
@@ -1137,79 +1384,90 @@ const AdminPage = () => {
       </main>
 
       <Dialog open={newsOpen} onOpenChange={setNewsOpen}>
-        <DialogContent className="max-w-3xl">
+        <DialogContent className="max-h-[92vh] max-w-[min(1120px,calc(100vw-1.5rem))] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{newsDraft.id ? "Editar noticia" : "Nova noticia"}</DialogTitle>
-            <DialogDescription>Preencha os campos principais para publicar no site.</DialogDescription>
+            <DialogDescription>Revise a noticia na previa antes de salvar.</DialogDescription>
           </DialogHeader>
-          <form className="grid gap-4" onSubmit={submitNews}>
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Titulo</Label>
-                <Input value={newsDraft.title} onChange={(e) => setNewsDraft((prev) => ({ ...prev, title: e.target.value }))} />
-              </div>
-              <div className="space-y-2">
-                <Label>Slug</Label>
-                <Input value={newsDraft.slug} onChange={(e) => setNewsDraft((prev) => ({ ...prev, slug: e.target.value }))} placeholder="deixe vazio para gerar automatico" />
-              </div>
-              <div className="space-y-2">
-                <Label>Categoria</Label>
-                <select className={inputSelectClassName} value={newsDraft.category} onChange={(e) => setNewsDraft((prev) => ({ ...prev, category: e.target.value }))}>
-                  {newsCategories.map((item) => (
-                    <option key={item} value={item}>{item}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="space-y-2">
-                <Label>Autor</Label>
-                <Input value={newsDraft.author} onChange={(e) => setNewsDraft((prev) => ({ ...prev, author: e.target.value }))} />
-              </div>
-              <MediaUploadField
-                label="Imagem"
-                value={newsDraft.coverImageUrl}
-                disabled={isUploadingMedia}
-                onUrlChange={(coverImageUrl) => setNewsDraft((prev) => ({ ...prev, coverImageUrl }))}
-                onFileChange={(event) =>
-                  void handleImageFileUpload(event, "news", (coverImageUrl) =>
-                    setNewsDraft((prev) => ({ ...prev, coverImageUrl })),
-                  )
-                }
-              />
-              <div className="space-y-2">
-                <Label>Tema da capa</Label>
-                <select className={inputSelectClassName} value={newsDraft.coverTone} onChange={(e) => setNewsDraft((prev) => ({ ...prev, coverTone: e.target.value }))}>
-                  {toneOptions.map((item) => (
-                    <option key={item} value={item}>{item}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="space-y-2">
-                <Label>Publicado em</Label>
-                <Input type="datetime-local" value={newsDraft.publishedAt} onChange={(e) => setNewsDraft((prev) => ({ ...prev, publishedAt: e.target.value }))} />
-              </div>
-              <div className="space-y-2">
-                <Label>Status</Label>
-                <select className={inputSelectClassName} value={newsDraft.status} onChange={(e) => setNewsDraft((prev) => ({ ...prev, status: e.target.value as "draft" | "published" }))}>
-                  <option value="published">published</option>
-                  <option value="draft">draft</option>
-                </select>
-              </div>
-            </div>
+          <form className="grid gap-5" onSubmit={submitNews}>
+            <EditorLayout preview={<NewsDraftPreview draft={newsDraft} />}>
+              <FormSection title="Identificacao">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2 md:col-span-2">
+                    <Label>Titulo</Label>
+                    <Input value={newsDraft.title} onChange={(e) => setNewsDraft((prev) => ({ ...prev, title: e.target.value }))} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Slug</Label>
+                    <Input value={newsDraft.slug} onChange={(e) => setNewsDraft((prev) => ({ ...prev, slug: e.target.value }))} placeholder="deixe vazio para gerar automatico" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Autor</Label>
+                    <Input value={newsDraft.author} onChange={(e) => setNewsDraft((prev) => ({ ...prev, author: e.target.value }))} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Categoria</Label>
+                    <select className={inputSelectClassName} value={newsDraft.category} onChange={(e) => setNewsDraft((prev) => ({ ...prev, category: e.target.value }))}>
+                      {newsCategories.map((item) => (
+                        <option key={item} value={item}>{item}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Status</Label>
+                    <select className={inputSelectClassName} value={newsDraft.status} onChange={(e) => setNewsDraft((prev) => ({ ...prev, status: e.target.value as "draft" | "published" }))}>
+                      <option value="published">published</option>
+                      <option value="draft">draft</option>
+                    </select>
+                  </div>
+                </div>
+              </FormSection>
 
-            <div className="flex items-center gap-2">
-              <input type="checkbox" checked={newsDraft.featured} onChange={(e) => setNewsDraft((prev) => ({ ...prev, featured: e.target.checked }))} />
-              <Label>Marcar como destaque</Label>
-            </div>
+              <FormSection title="Imagem e publicacao">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <MediaUploadField
+                    label="Imagem"
+                    value={newsDraft.coverImageUrl}
+                    disabled={isUploadingMedia}
+                    onUrlChange={(coverImageUrl) => setNewsDraft((prev) => ({ ...prev, coverImageUrl }))}
+                    onFileChange={(event) =>
+                      void handleImageFileUpload(event, "news", (coverImageUrl) =>
+                        setNewsDraft((prev) => ({ ...prev, coverImageUrl })),
+                      )
+                    }
+                  />
+                  <div className="space-y-2">
+                    <Label>Tema da capa</Label>
+                    <select className={inputSelectClassName} value={newsDraft.coverTone} onChange={(e) => setNewsDraft((prev) => ({ ...prev, coverTone: e.target.value }))}>
+                      {toneOptions.map((item) => (
+                        <option key={item} value={item}>{item}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Publicado em</Label>
+                    <Input type="datetime-local" value={newsDraft.publishedAt} onChange={(e) => setNewsDraft((prev) => ({ ...prev, publishedAt: e.target.value }))} />
+                  </div>
+                  <label className="flex min-h-10 items-center gap-2 rounded-md border border-border bg-background px-3 py-2">
+                    <input type="checkbox" checked={newsDraft.featured} onChange={(e) => setNewsDraft((prev) => ({ ...prev, featured: e.target.checked }))} />
+                    <span className="font-body text-sm">Marcar como destaque</span>
+                  </label>
+                </div>
+              </FormSection>
 
-            <div className="space-y-2">
-              <Label>Resumo</Label>
-              <Textarea value={newsDraft.summary} onChange={(e) => setNewsDraft((prev) => ({ ...prev, summary: e.target.value }))} />
-            </div>
-            <div className="space-y-2">
-              <Label>Conteudo</Label>
-              <Textarea className="min-h-[220px]" value={newsDraft.content} onChange={(e) => setNewsDraft((prev) => ({ ...prev, content: e.target.value }))} />
-            </div>
-            <DialogFooter>
+              <FormSection title="Texto">
+                <div className="space-y-2">
+                  <Label>Resumo</Label>
+                  <Textarea value={newsDraft.summary} onChange={(e) => setNewsDraft((prev) => ({ ...prev, summary: e.target.value }))} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Conteudo</Label>
+                  <Textarea className="min-h-[240px]" value={newsDraft.content} onChange={(e) => setNewsDraft((prev) => ({ ...prev, content: e.target.value }))} />
+                </div>
+              </FormSection>
+            </EditorLayout>
+
+            <DialogFooter className="gap-2 sm:space-x-0">
               <Button type="submit" disabled={saveNewsMutation.isPending || isUploadingMedia}>
                 {isUploadingMedia ? "Enviando imagem..." : "Salvar noticia"}
               </Button>
@@ -1219,61 +1477,71 @@ const AdminPage = () => {
       </Dialog>
 
       <Dialog open={galleryOpen} onOpenChange={setGalleryOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-h-[92vh] max-w-[min(1040px,calc(100vw-1.5rem))] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{galleryDraft.id ? "Editar item da galeria" : "Novo item da galeria"}</DialogTitle>
-            <DialogDescription>Use imagem por URL, envie um arquivo ou deixe apenas um tema visual de capa.</DialogDescription>
+            <DialogDescription>Confira a foto e a legenda antes de salvar.</DialogDescription>
           </DialogHeader>
-          <form className="grid gap-4" onSubmit={submitGallery}>
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Titulo</Label>
-                <Input value={galleryDraft.title} onChange={(e) => setGalleryDraft((prev) => ({ ...prev, title: e.target.value }))} />
-              </div>
-              <div className="space-y-2">
-                <Label>Categoria</Label>
-                <Input value={galleryDraft.category} onChange={(e) => setGalleryDraft((prev) => ({ ...prev, category: e.target.value }))} />
-              </div>
-              <MediaUploadField
-                label="Imagem"
-                value={galleryDraft.imageUrl}
-                disabled={isUploadingMedia}
-                onUrlChange={(imageUrl) => setGalleryDraft((prev) => ({ ...prev, imageUrl }))}
-                onFileChange={(event) =>
-                  void handleImageFileUpload(event, "gallery", (imageUrl) =>
-                    setGalleryDraft((prev) => ({ ...prev, imageUrl })),
-                  )
-                }
-              />
-              <div className="space-y-2">
-                <Label>Tema da capa</Label>
-                <select className={inputSelectClassName} value={galleryDraft.coverTone} onChange={(e) => setGalleryDraft((prev) => ({ ...prev, coverTone: e.target.value }))}>
-                  {toneOptions.map((item) => (
-                    <option key={item} value={item}>{item}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="space-y-2">
-                <Label>Publicado em</Label>
-                <Input type="datetime-local" value={galleryDraft.publishedAt} onChange={(e) => setGalleryDraft((prev) => ({ ...prev, publishedAt: e.target.value }))} />
-              </div>
-              <div className="space-y-2">
-                <Label>Status</Label>
-                <select className={inputSelectClassName} value={galleryDraft.status} onChange={(e) => setGalleryDraft((prev) => ({ ...prev, status: e.target.value as "draft" | "published" }))}>
-                  <option value="published">published</option>
-                  <option value="draft">draft</option>
-                </select>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <input type="checkbox" checked={galleryDraft.featured} onChange={(e) => setGalleryDraft((prev) => ({ ...prev, featured: e.target.checked }))} />
-              <Label>Marcar como destaque</Label>
-            </div>
-            <div className="space-y-2">
-              <Label>Legenda</Label>
-              <Textarea value={galleryDraft.caption} onChange={(e) => setGalleryDraft((prev) => ({ ...prev, caption: e.target.value }))} />
-            </div>
-            <DialogFooter>
+          <form className="grid gap-5" onSubmit={submitGallery}>
+            <EditorLayout preview={<GalleryDraftPreview draft={galleryDraft} />}>
+              <FormSection title="Conteudo">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2 md:col-span-2">
+                    <Label>Titulo</Label>
+                    <Input value={galleryDraft.title} onChange={(e) => setGalleryDraft((prev) => ({ ...prev, title: e.target.value }))} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Categoria</Label>
+                    <Input value={galleryDraft.category} onChange={(e) => setGalleryDraft((prev) => ({ ...prev, category: e.target.value }))} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Status</Label>
+                    <select className={inputSelectClassName} value={galleryDraft.status} onChange={(e) => setGalleryDraft((prev) => ({ ...prev, status: e.target.value as "draft" | "published" }))}>
+                      <option value="published">published</option>
+                      <option value="draft">draft</option>
+                    </select>
+                  </div>
+                  <div className="space-y-2 md:col-span-2">
+                    <Label>Legenda</Label>
+                    <Textarea value={galleryDraft.caption} onChange={(e) => setGalleryDraft((prev) => ({ ...prev, caption: e.target.value }))} />
+                  </div>
+                </div>
+              </FormSection>
+
+              <FormSection title="Imagem e publicacao">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <MediaUploadField
+                    label="Imagem"
+                    value={galleryDraft.imageUrl}
+                    disabled={isUploadingMedia}
+                    onUrlChange={(imageUrl) => setGalleryDraft((prev) => ({ ...prev, imageUrl }))}
+                    onFileChange={(event) =>
+                      void handleImageFileUpload(event, "gallery", (imageUrl) =>
+                        setGalleryDraft((prev) => ({ ...prev, imageUrl })),
+                      )
+                    }
+                  />
+                  <div className="space-y-2">
+                    <Label>Tema da capa</Label>
+                    <select className={inputSelectClassName} value={galleryDraft.coverTone} onChange={(e) => setGalleryDraft((prev) => ({ ...prev, coverTone: e.target.value }))}>
+                      {toneOptions.map((item) => (
+                        <option key={item} value={item}>{item}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Publicado em</Label>
+                    <Input type="datetime-local" value={galleryDraft.publishedAt} onChange={(e) => setGalleryDraft((prev) => ({ ...prev, publishedAt: e.target.value }))} />
+                  </div>
+                  <label className="flex min-h-10 items-center gap-2 rounded-md border border-border bg-background px-3 py-2">
+                    <input type="checkbox" checked={galleryDraft.featured} onChange={(e) => setGalleryDraft((prev) => ({ ...prev, featured: e.target.checked }))} />
+                    <span className="font-body text-sm">Marcar como destaque</span>
+                  </label>
+                </div>
+              </FormSection>
+            </EditorLayout>
+
+            <DialogFooter className="gap-2 sm:space-x-0">
               <Button type="submit" disabled={saveGalleryMutation.isPending || isUploadingMedia}>
                 {isUploadingMedia ? "Enviando imagem..." : "Salvar item"}
               </Button>
@@ -1283,46 +1551,54 @@ const AdminPage = () => {
       </Dialog>
 
       <Dialog open={eventOpen} onOpenChange={setEventOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-h-[92vh] max-w-[min(960px,calc(100vw-1.5rem))] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{eventDraft.id ? "Editar evento" : "Novo evento"}</DialogTitle>
-            <DialogDescription>Agende reunioes, mostras, festivais e datas academicas.</DialogDescription>
+            <DialogDescription>Agenda escolar com data, local e destaque.</DialogDescription>
           </DialogHeader>
-          <form className="grid gap-4" onSubmit={submitEvent}>
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Titulo</Label>
-                <Input value={eventDraft.title} onChange={(e) => setEventDraft((prev) => ({ ...prev, title: e.target.value }))} />
-              </div>
-              <div className="space-y-2">
-                <Label>Categoria</Label>
-                <Input value={eventDraft.category} onChange={(e) => setEventDraft((prev) => ({ ...prev, category: e.target.value }))} />
-              </div>
-              <div className="space-y-2">
-                <Label>Data</Label>
-                <Input type="date" value={eventDraft.eventDate} onChange={(e) => setEventDraft((prev) => ({ ...prev, eventDate: e.target.value }))} />
-              </div>
-              <div className="space-y-2">
-                <Label>Local</Label>
-                <Input value={eventDraft.location} onChange={(e) => setEventDraft((prev) => ({ ...prev, location: e.target.value }))} />
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <input type="checkbox" checked={eventDraft.highlight} onChange={(e) => setEventDraft((prev) => ({ ...prev, highlight: e.target.checked }))} />
-              <Label>Marcar como destaque</Label>
-            </div>
-            <div className="space-y-2">
-              <Label>Status</Label>
-              <select className={inputSelectClassName} value={eventDraft.status} onChange={(e) => setEventDraft((prev) => ({ ...prev, status: e.target.value as "draft" | "published" }))}>
-                <option value="published">published</option>
-                <option value="draft">draft</option>
-              </select>
-            </div>
-            <div className="space-y-2">
-              <Label>Descricao</Label>
-              <Textarea value={eventDraft.description} onChange={(e) => setEventDraft((prev) => ({ ...prev, description: e.target.value }))} />
-            </div>
-            <DialogFooter>
+          <form className="grid gap-5" onSubmit={submitEvent}>
+            <EditorLayout preview={<EventDraftPreview draft={eventDraft} />}>
+              <FormSection title="Evento">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2 md:col-span-2">
+                    <Label>Titulo</Label>
+                    <Input value={eventDraft.title} onChange={(e) => setEventDraft((prev) => ({ ...prev, title: e.target.value }))} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Categoria</Label>
+                    <Input value={eventDraft.category} onChange={(e) => setEventDraft((prev) => ({ ...prev, category: e.target.value }))} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Status</Label>
+                    <select className={inputSelectClassName} value={eventDraft.status} onChange={(e) => setEventDraft((prev) => ({ ...prev, status: e.target.value as "draft" | "published" }))}>
+                      <option value="published">published</option>
+                      <option value="draft">draft</option>
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Data</Label>
+                    <Input type="date" value={eventDraft.eventDate} onChange={(e) => setEventDraft((prev) => ({ ...prev, eventDate: e.target.value }))} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Local</Label>
+                    <Input value={eventDraft.location} onChange={(e) => setEventDraft((prev) => ({ ...prev, location: e.target.value }))} />
+                  </div>
+                  <label className="flex min-h-10 items-center gap-2 rounded-md border border-border bg-background px-3 py-2 md:col-span-2">
+                    <input type="checkbox" checked={eventDraft.highlight} onChange={(e) => setEventDraft((prev) => ({ ...prev, highlight: e.target.checked }))} />
+                    <span className="font-body text-sm">Marcar como destaque</span>
+                  </label>
+                </div>
+              </FormSection>
+
+              <FormSection title="Descricao">
+                <div className="space-y-2">
+                  <Label>Descricao</Label>
+                  <Textarea value={eventDraft.description} onChange={(e) => setEventDraft((prev) => ({ ...prev, description: e.target.value }))} />
+                </div>
+              </FormSection>
+            </EditorLayout>
+
+            <DialogFooter className="gap-2 sm:space-x-0">
               <Button type="submit" disabled={saveEventMutation.isPending}>Salvar evento</Button>
             </DialogFooter>
           </form>
@@ -1330,77 +1606,90 @@ const AdminPage = () => {
       </Dialog>
 
       <Dialog open={workOpen} onOpenChange={setWorkOpen}>
-        <DialogContent className="max-w-3xl">
+        <DialogContent className="max-h-[92vh] max-w-[min(1120px,calc(100vw-1.5rem))] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{workDraft.id ? "Editar trabalho" : "Novo trabalho"}</DialogTitle>
-            <DialogDescription>Publique producoes dos alunos com texto completo e capa opcional.</DialogDescription>
+            <DialogDescription>Revise a chamada do trabalho antes de salvar.</DialogDescription>
           </DialogHeader>
-          <form className="grid gap-4" onSubmit={submitWork}>
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Titulo</Label>
-                <Input value={workDraft.title} onChange={(e) => setWorkDraft((prev) => ({ ...prev, title: e.target.value }))} />
-              </div>
-              <div className="space-y-2">
-                <Label>Slug</Label>
-                <Input value={workDraft.slug} onChange={(e) => setWorkDraft((prev) => ({ ...prev, slug: e.target.value }))} placeholder="deixe vazio para gerar automatico" />
-              </div>
-              <div className="space-y-2">
-                <Label>Tipo</Label>
-                <select className={inputSelectClassName} value={workDraft.workType} onChange={(e) => setWorkDraft((prev) => ({ ...prev, workType: e.target.value }))}>
-                  {workTypes.map((item) => (
-                    <option key={item} value={item}>{item}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="space-y-2">
-                <Label>Autor</Label>
-                <Input value={workDraft.author} onChange={(e) => setWorkDraft((prev) => ({ ...prev, author: e.target.value }))} />
-              </div>
-              <MediaUploadField
-                label="Imagem"
-                value={workDraft.coverImageUrl}
-                disabled={isUploadingMedia}
-                onUrlChange={(coverImageUrl) => setWorkDraft((prev) => ({ ...prev, coverImageUrl }))}
-                onFileChange={(event) =>
-                  void handleImageFileUpload(event, "works", (coverImageUrl) =>
-                    setWorkDraft((prev) => ({ ...prev, coverImageUrl })),
-                  )
-                }
-              />
-              <div className="space-y-2">
-                <Label>Tema da capa</Label>
-                <select className={inputSelectClassName} value={workDraft.coverTone} onChange={(e) => setWorkDraft((prev) => ({ ...prev, coverTone: e.target.value }))}>
-                  {toneOptions.map((item) => (
-                    <option key={item} value={item}>{item}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="space-y-2">
-                <Label>Publicado em</Label>
-                <Input type="datetime-local" value={workDraft.publishedAt} onChange={(e) => setWorkDraft((prev) => ({ ...prev, publishedAt: e.target.value }))} />
-              </div>
-              <div className="space-y-2">
-                <Label>Status</Label>
-                <select className={inputSelectClassName} value={workDraft.status} onChange={(e) => setWorkDraft((prev) => ({ ...prev, status: e.target.value as "draft" | "published" }))}>
-                  <option value="published">published</option>
-                  <option value="draft">draft</option>
-                </select>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <input type="checkbox" checked={workDraft.featured} onChange={(e) => setWorkDraft((prev) => ({ ...prev, featured: e.target.checked }))} />
-              <Label>Marcar como destaque</Label>
-            </div>
-            <div className="space-y-2">
-              <Label>Resumo</Label>
-              <Textarea value={workDraft.excerpt} onChange={(e) => setWorkDraft((prev) => ({ ...prev, excerpt: e.target.value }))} />
-            </div>
-            <div className="space-y-2">
-              <Label>Conteudo</Label>
-              <Textarea className="min-h-[220px]" value={workDraft.content} onChange={(e) => setWorkDraft((prev) => ({ ...prev, content: e.target.value }))} />
-            </div>
-            <DialogFooter>
+          <form className="grid gap-5" onSubmit={submitWork}>
+            <EditorLayout preview={<WorkDraftPreview draft={workDraft} />}>
+              <FormSection title="Identificacao">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2 md:col-span-2">
+                    <Label>Titulo</Label>
+                    <Input value={workDraft.title} onChange={(e) => setWorkDraft((prev) => ({ ...prev, title: e.target.value }))} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Slug</Label>
+                    <Input value={workDraft.slug} onChange={(e) => setWorkDraft((prev) => ({ ...prev, slug: e.target.value }))} placeholder="deixe vazio para gerar automatico" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Autor</Label>
+                    <Input value={workDraft.author} onChange={(e) => setWorkDraft((prev) => ({ ...prev, author: e.target.value }))} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Tipo</Label>
+                    <select className={inputSelectClassName} value={workDraft.workType} onChange={(e) => setWorkDraft((prev) => ({ ...prev, workType: e.target.value }))}>
+                      {workTypes.map((item) => (
+                        <option key={item} value={item}>{item}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Status</Label>
+                    <select className={inputSelectClassName} value={workDraft.status} onChange={(e) => setWorkDraft((prev) => ({ ...prev, status: e.target.value as "draft" | "published" }))}>
+                      <option value="published">published</option>
+                      <option value="draft">draft</option>
+                    </select>
+                  </div>
+                </div>
+              </FormSection>
+
+              <FormSection title="Imagem e publicacao">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <MediaUploadField
+                    label="Imagem"
+                    value={workDraft.coverImageUrl}
+                    disabled={isUploadingMedia}
+                    onUrlChange={(coverImageUrl) => setWorkDraft((prev) => ({ ...prev, coverImageUrl }))}
+                    onFileChange={(event) =>
+                      void handleImageFileUpload(event, "works", (coverImageUrl) =>
+                        setWorkDraft((prev) => ({ ...prev, coverImageUrl })),
+                      )
+                    }
+                  />
+                  <div className="space-y-2">
+                    <Label>Tema da capa</Label>
+                    <select className={inputSelectClassName} value={workDraft.coverTone} onChange={(e) => setWorkDraft((prev) => ({ ...prev, coverTone: e.target.value }))}>
+                      {toneOptions.map((item) => (
+                        <option key={item} value={item}>{item}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Publicado em</Label>
+                    <Input type="datetime-local" value={workDraft.publishedAt} onChange={(e) => setWorkDraft((prev) => ({ ...prev, publishedAt: e.target.value }))} />
+                  </div>
+                  <label className="flex min-h-10 items-center gap-2 rounded-md border border-border bg-background px-3 py-2">
+                    <input type="checkbox" checked={workDraft.featured} onChange={(e) => setWorkDraft((prev) => ({ ...prev, featured: e.target.checked }))} />
+                    <span className="font-body text-sm">Marcar como destaque</span>
+                  </label>
+                </div>
+              </FormSection>
+
+              <FormSection title="Texto">
+                <div className="space-y-2">
+                  <Label>Resumo</Label>
+                  <Textarea value={workDraft.excerpt} onChange={(e) => setWorkDraft((prev) => ({ ...prev, excerpt: e.target.value }))} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Conteudo</Label>
+                  <Textarea className="min-h-[240px]" value={workDraft.content} onChange={(e) => setWorkDraft((prev) => ({ ...prev, content: e.target.value }))} />
+                </div>
+              </FormSection>
+            </EditorLayout>
+
+            <DialogFooter className="gap-2 sm:space-x-0">
               <Button type="submit" disabled={saveWorkMutation.isPending || isUploadingMedia}>
                 {isUploadingMedia ? "Enviando imagem..." : "Salvar trabalho"}
               </Button>
@@ -1410,54 +1699,62 @@ const AdminPage = () => {
       </Dialog>
 
       <Dialog open={noticeOpen} onOpenChange={setNoticeOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-h-[92vh] max-w-[min(960px,calc(100vw-1.5rem))] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{noticeDraft.id ? "Editar aviso" : "Novo aviso"}</DialogTitle>
-            <DialogDescription>Defina o tipo de comunicado, o icone e a ordem de exibicao.</DialogDescription>
+            <DialogDescription>Comunicado com tipo, data e fixacao no mural.</DialogDescription>
           </DialogHeader>
-          <form className="grid gap-4" onSubmit={submitNotice}>
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Tipo</Label>
-                <select className={inputSelectClassName} value={noticeDraft.noticeType} onChange={(e) => setNoticeDraft((prev) => ({ ...prev, noticeType: e.target.value }))}>
-                  {noticeTypes.map((item) => (
-                    <option key={item} value={item}>{item}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="space-y-2">
-                <Label>Icone</Label>
-                <select className={inputSelectClassName} value={noticeDraft.icon} onChange={(e) => setNoticeDraft((prev) => ({ ...prev, icon: e.target.value }))}>
-                  {noticeIcons.map((item) => (
-                    <option key={item} value={item}>{item}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="space-y-2 md:col-span-2">
-                <Label>Titulo</Label>
-                <Input value={noticeDraft.title} onChange={(e) => setNoticeDraft((prev) => ({ ...prev, title: e.target.value }))} />
-              </div>
-              <div className="space-y-2">
-                <Label>Publicado em</Label>
-                <Input type="datetime-local" value={noticeDraft.publishedAt} onChange={(e) => setNoticeDraft((prev) => ({ ...prev, publishedAt: e.target.value }))} />
-              </div>
-              <div className="space-y-2">
-                <Label>Status</Label>
-                <select className={inputSelectClassName} value={noticeDraft.status} onChange={(e) => setNoticeDraft((prev) => ({ ...prev, status: e.target.value as "draft" | "published" }))}>
-                  <option value="published">published</option>
-                  <option value="draft">draft</option>
-                </select>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <input type="checkbox" checked={noticeDraft.pinned} onChange={(e) => setNoticeDraft((prev) => ({ ...prev, pinned: e.target.checked }))} />
-              <Label>Fixar no topo do mural</Label>
-            </div>
-            <div className="space-y-2">
-              <Label>Descricao</Label>
-              <Textarea value={noticeDraft.description} onChange={(e) => setNoticeDraft((prev) => ({ ...prev, description: e.target.value }))} />
-            </div>
-            <DialogFooter>
+          <form className="grid gap-5" onSubmit={submitNotice}>
+            <EditorLayout preview={<NoticeDraftPreview draft={noticeDraft} />}>
+              <FormSection title="Aviso">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2 md:col-span-2">
+                    <Label>Titulo</Label>
+                    <Input value={noticeDraft.title} onChange={(e) => setNoticeDraft((prev) => ({ ...prev, title: e.target.value }))} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Tipo</Label>
+                    <select className={inputSelectClassName} value={noticeDraft.noticeType} onChange={(e) => setNoticeDraft((prev) => ({ ...prev, noticeType: e.target.value }))}>
+                      {noticeTypes.map((item) => (
+                        <option key={item} value={item}>{item}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Icone</Label>
+                    <select className={inputSelectClassName} value={noticeDraft.icon} onChange={(e) => setNoticeDraft((prev) => ({ ...prev, icon: e.target.value }))}>
+                      {noticeIcons.map((item) => (
+                        <option key={item} value={item}>{item}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Publicado em</Label>
+                    <Input type="datetime-local" value={noticeDraft.publishedAt} onChange={(e) => setNoticeDraft((prev) => ({ ...prev, publishedAt: e.target.value }))} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Status</Label>
+                    <select className={inputSelectClassName} value={noticeDraft.status} onChange={(e) => setNoticeDraft((prev) => ({ ...prev, status: e.target.value as "draft" | "published" }))}>
+                      <option value="published">published</option>
+                      <option value="draft">draft</option>
+                    </select>
+                  </div>
+                  <label className="flex min-h-10 items-center gap-2 rounded-md border border-border bg-background px-3 py-2 md:col-span-2">
+                    <input type="checkbox" checked={noticeDraft.pinned} onChange={(e) => setNoticeDraft((prev) => ({ ...prev, pinned: e.target.checked }))} />
+                    <span className="font-body text-sm">Fixar no topo do mural</span>
+                  </label>
+                </div>
+              </FormSection>
+
+              <FormSection title="Descricao">
+                <div className="space-y-2">
+                  <Label>Descricao</Label>
+                  <Textarea value={noticeDraft.description} onChange={(e) => setNoticeDraft((prev) => ({ ...prev, description: e.target.value }))} />
+                </div>
+              </FormSection>
+            </EditorLayout>
+
+            <DialogFooter className="gap-2 sm:space-x-0">
               <Button type="submit" disabled={saveNoticeMutation.isPending}>Salvar aviso</Button>
             </DialogFooter>
           </form>
@@ -1465,95 +1762,101 @@ const AdminPage = () => {
       </Dialog>
 
       <Dialog open={pollOpen} onOpenChange={setPollOpen}>
-        <DialogContent className="max-w-3xl">
+        <DialogContent className="max-h-[92vh] max-w-[min(1040px,calc(100vw-1.5rem))] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{pollDraft.id ? "Editar enquete" : "Nova enquete"}</DialogTitle>
-            <DialogDescription>Escolha a pergunta ativa e configure as opcoes de voto.</DialogDescription>
+            <DialogDescription>Pergunta ativa, encerramento e opcoes de voto.</DialogDescription>
           </DialogHeader>
-          <form className="grid gap-4" onSubmit={submitPoll}>
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2 md:col-span-2">
-                <Label>Pergunta</Label>
-                <Input value={pollDraft.question} onChange={(e) => setPollDraft((prev) => ({ ...prev, question: e.target.value }))} />
-              </div>
-              <div className="space-y-2 md:col-span-2">
-                <Label>Descricao</Label>
-                <Textarea value={pollDraft.description} onChange={(e) => setPollDraft((prev) => ({ ...prev, description: e.target.value }))} />
-              </div>
-              <div className="space-y-2">
-                <Label>Fecha em</Label>
-                <Input type="datetime-local" value={pollDraft.closesAt} onChange={(e) => setPollDraft((prev) => ({ ...prev, closesAt: e.target.value }))} />
-              </div>
-              <div className="flex items-center gap-2 pt-8">
-                <input type="checkbox" checked={pollDraft.isActive} onChange={(e) => setPollDraft((prev) => ({ ...prev, isActive: e.target.checked }))} />
-                <Label>Manter esta enquete ativa</Label>
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <Label>Opcoes</Label>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() =>
-                    setPollDraft((prev) => ({
-                      ...prev,
-                      options: [...prev.options, emptyPollOption()],
-                    }))
-                  }
-                >
-                  <Plus className="w-4 h-4" />
-                  Adicionar opcao
-                </Button>
-              </div>
-
-              {pollDraft.options.map((option, index) => (
-                <div key={`${option.id ?? "new"}-${index}`} className="grid gap-3 md:grid-cols-[minmax(0,1fr)_120px_auto]">
-                  <Input
-                    value={option.label}
-                    onChange={(e) =>
-                      setPollDraft((prev) => ({
-                        ...prev,
-                        options: prev.options.map((item, itemIndex) =>
-                          itemIndex === index ? { ...item, label: e.target.value } : item,
-                        ),
-                      }))
-                    }
-                    placeholder={`Opcao ${index + 1}`}
-                  />
-                  <Input
-                    type="number"
-                    min="0"
-                    value={option.votes}
-                    onChange={(e) =>
-                      setPollDraft((prev) => ({
-                        ...prev,
-                        options: prev.options.map((item, itemIndex) =>
-                          itemIndex === index ? { ...item, votes: Number(e.target.value) } : item,
-                        ),
-                      }))
-                    }
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    onClick={() =>
-                      setPollDraft((prev) => ({
-                        ...prev,
-                        options: prev.options.length > 2
-                          ? prev.options.filter((_, itemIndex) => itemIndex !== index)
-                          : prev.options,
-                      }))
-                    }
-                  >
-                    Remover
-                  </Button>
+          <form className="grid gap-5" onSubmit={submitPoll}>
+            <EditorLayout preview={<PollDraftPreview draft={pollDraft} />}>
+              <FormSection title="Enquete">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2 md:col-span-2">
+                    <Label>Pergunta</Label>
+                    <Input value={pollDraft.question} onChange={(e) => setPollDraft((prev) => ({ ...prev, question: e.target.value }))} />
+                  </div>
+                  <div className="space-y-2 md:col-span-2">
+                    <Label>Descricao</Label>
+                    <Textarea value={pollDraft.description} onChange={(e) => setPollDraft((prev) => ({ ...prev, description: e.target.value }))} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Fecha em</Label>
+                    <Input type="datetime-local" value={pollDraft.closesAt} onChange={(e) => setPollDraft((prev) => ({ ...prev, closesAt: e.target.value }))} />
+                  </div>
+                  <label className="flex min-h-10 items-center gap-2 rounded-md border border-border bg-background px-3 py-2 md:self-end">
+                    <input type="checkbox" checked={pollDraft.isActive} onChange={(e) => setPollDraft((prev) => ({ ...prev, isActive: e.target.checked }))} />
+                    <span className="font-body text-sm">Manter esta enquete ativa</span>
+                  </label>
                 </div>
-              ))}
-            </div>
+              </FormSection>
 
-            <DialogFooter>
+              <FormSection title="Opcoes">
+                <div className="space-y-3">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <Label>Opcoes</Label>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() =>
+                        setPollDraft((prev) => ({
+                          ...prev,
+                          options: [...prev.options, emptyPollOption()],
+                        }))
+                      }
+                    >
+                      <Plus className="w-4 h-4" />
+                      Adicionar opcao
+                    </Button>
+                  </div>
+
+                  {pollDraft.options.map((option, index) => (
+                    <div key={`${option.id ?? "new"}-${index}`} className="grid gap-3 md:grid-cols-[minmax(0,1fr)_120px_auto]">
+                      <Input
+                        value={option.label}
+                        onChange={(e) =>
+                          setPollDraft((prev) => ({
+                            ...prev,
+                            options: prev.options.map((item, itemIndex) =>
+                              itemIndex === index ? { ...item, label: e.target.value } : item,
+                            ),
+                          }))
+                        }
+                        placeholder={`Opcao ${index + 1}`}
+                      />
+                      <Input
+                        type="number"
+                        min="0"
+                        value={option.votes}
+                        onChange={(e) =>
+                          setPollDraft((prev) => ({
+                            ...prev,
+                            options: prev.options.map((item, itemIndex) =>
+                              itemIndex === index ? { ...item, votes: Number(e.target.value) } : item,
+                            ),
+                          }))
+                        }
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        onClick={() =>
+                          setPollDraft((prev) => ({
+                            ...prev,
+                            options: prev.options.length > 2
+                              ? prev.options.filter((_, itemIndex) => itemIndex !== index)
+                              : prev.options,
+                          }))
+                        }
+                      >
+                        Remover
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </FormSection>
+            </EditorLayout>
+
+            <DialogFooter className="gap-2 sm:space-x-0">
               <Button type="submit" disabled={savePollMutation.isPending}>Salvar enquete</Button>
             </DialogFooter>
           </form>
