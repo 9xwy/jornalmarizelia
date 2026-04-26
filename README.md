@@ -11,6 +11,7 @@ O projeto funciona como um jornal digital escolar. A area publica usa conteudo d
 - Pagina inicial editorial com destaques, agenda, galeria, trabalhos e avisos.
 - Rotas dedicadas para noticias, calendario, galeria, trabalhos dos alunos e mural de avisos.
 - Painel administrativo para CRUD de conteudo e enquetes.
+- Upload de imagens pelo Supabase Storage no painel administrativo.
 - Fallback com conteudo demonstrativo para ambientes sem banco configurado.
 - Headers de seguranca e fallback de SPA preparados para Vercel, Netlify e Cloudflare Pages.
 - Schema SQL do Supabase incluido em `supabase/schema.sql`.
@@ -67,6 +68,8 @@ on conflict (email) do nothing;
 ```
 
 Se o email logado no painel nao estiver nessa tabela, o Supabase bloqueia publicacoes e edicoes pelas regras de seguranca.
+
+O schema tambem cria o bucket publico `jornal-media` no Supabase Storage. Esse bucket e usado para enviar imagens pelo painel administrativo e aceita arquivos JPG, PNG, WEBP e GIF de ate 5 MB.
 
 ## Scripts
 

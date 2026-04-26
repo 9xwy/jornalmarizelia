@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useState, type ChangeEvent, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   CalendarDays,
@@ -62,6 +62,7 @@ import {
   saveStudentWork,
   seedDatabaseWithDemoContent,
 } from "@/lib/content-api";
+import { MEDIA_HELP_TEXT, uploadMediaFile, type MediaFolder } from "@/lib/media-storage";
 import { noticeIcons, noticeTypes, newsCategories, toneOptions, workTypes } from "@/lib/site-config";
 import type {
   CalendarEventInput,
@@ -115,11 +116,55 @@ function getErrorMessage(error: unknown) {
       .join(" ");
   }
 
-  if (error instanceof Error) {
-    return error.message;
+  const message =
+    error instanceof Error
+      ? error.message
+      : typeof error === "string"
+        ? error
+        : typeof error === "object" && error && "message" in error
+          ? String((error as { message?: unknown }).message ?? "")
+          : "";
+
+  if (message) {
+    const normalizedMessage = message.toLowerCase();
+
+    if (normalizedMessage.includes("row-level security") || normalizedMessage.includes("permission denied")) {
+      return "Permissao negada no Supabase. Confira se o mesmo email do login esta em allowed_admin_emails e se o schema mais recente foi executado.";
+    }
+
+    if (normalizedMessage.includes("bucket not found") || normalizedMessage.includes("storage bucket")) {
+      return "Bucket de imagens nao encontrado. Rode novamente o arquivo supabase/schema.sql no SQL Editor.";
+    }
+
+    if (normalizedMessage.includes("duplicate key") || normalizedMessage.includes("unique constraint")) {
+      return "Ja existe um item com esse slug ou identificador. Use outro slug.";
+    }
+
+    return message;
   }
 
   return "Nao foi possivel concluir a operacao.";
+}
+
+type MediaUploadFieldProps = {
+  label: string;
+  value: string;
+  disabled: boolean;
+  onUrlChange: (value: string) => void;
+  onFileChange: (event: ChangeEvent<HTMLInputElement>) => void;
+};
+
+function MediaUploadField({ label, value, disabled, onUrlChange, onFileChange }: MediaUploadFieldProps) {
+  return (
+    <div className="space-y-2">
+      <Label>{label}</Label>
+      <Input value={value} onChange={(event) => onUrlChange(event.target.value)} placeholder="URL da imagem" />
+      <Input type="file" accept="image/jpeg,image/png,image/webp,image/gif" disabled={disabled} onChange={onFileChange} />
+      <p className="font-body text-xs text-muted-foreground">
+        {disabled ? "Enviando imagem..." : MEDIA_HELP_TEXT}
+      </p>
+    </div>
+  );
 }
 
 function emptyNews(): NewsArticleInput {
@@ -264,6 +309,8 @@ const AdminPage = () => {
   const [workDraft, setWorkDraft] = useState<StudentWorkInput>(emptyWork());
   const [noticeDraft, setNoticeDraft] = useState<NoticeInput>(emptyNotice());
   const [pollDraft, setPollDraft] = useState<PollInput>(emptyPoll());
+  const [uploadingMediaField, setUploadingMediaField] = useState<MediaFolder | null>(null);
+  const isUploadingMedia = Boolean(uploadingMediaField);
 
   const newsQuery = useQuery({
     queryKey: queryKeys.adminNews,
@@ -383,8 +430,37 @@ const AdminPage = () => {
     setPollOpen(true);
   }
 
+  async function handleImageFileUpload(
+    event: ChangeEvent<HTMLInputElement>,
+    folder: MediaFolder,
+    onUploaded: (url: string) => void,
+  ) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+
+    if (!file) {
+      return;
+    }
+
+    setUploadingMediaField(folder);
+    try {
+      const publicUrl = await uploadMediaFile(file, folder);
+      onUploaded(publicUrl);
+      toast.success("Imagem enviada com sucesso.");
+    } catch (error) {
+      toast.error(getErrorMessage(error));
+    } finally {
+      setUploadingMediaField(null);
+    }
+  }
+
   async function submitNews(event: React.FormEvent) {
     event.preventDefault();
+    if (isUploadingMedia) {
+      toast.error("Aguarde o envio da imagem terminar.");
+      return;
+    }
+
     try {
       await saveNewsMutation.mutateAsync({
         ...newsDraft,
@@ -401,6 +477,11 @@ const AdminPage = () => {
 
   async function submitGallery(event: React.FormEvent) {
     event.preventDefault();
+    if (isUploadingMedia) {
+      toast.error("Aguarde o envio da imagem terminar.");
+      return;
+    }
+
     try {
       await saveGalleryMutation.mutateAsync(galleryDraft);
       toast.success("Item da galeria salvo com sucesso.");
@@ -427,6 +508,11 @@ const AdminPage = () => {
 
   async function submitWork(event: React.FormEvent) {
     event.preventDefault();
+    if (isUploadingMedia) {
+      toast.error("Aguarde o envio da imagem terminar.");
+      return;
+    }
+
     try {
       await saveWorkMutation.mutateAsync({
         ...workDraft,
@@ -1078,10 +1164,17 @@ const AdminPage = () => {
                 <Label>Autor</Label>
                 <Input value={newsDraft.author} onChange={(e) => setNewsDraft((prev) => ({ ...prev, author: e.target.value }))} />
               </div>
-              <div className="space-y-2">
-                <Label>Imagem por URL</Label>
-                <Input value={newsDraft.coverImageUrl} onChange={(e) => setNewsDraft((prev) => ({ ...prev, coverImageUrl: e.target.value }))} />
-              </div>
+              <MediaUploadField
+                label="Imagem"
+                value={newsDraft.coverImageUrl}
+                disabled={isUploadingMedia}
+                onUrlChange={(coverImageUrl) => setNewsDraft((prev) => ({ ...prev, coverImageUrl }))}
+                onFileChange={(event) =>
+                  void handleImageFileUpload(event, "news", (coverImageUrl) =>
+                    setNewsDraft((prev) => ({ ...prev, coverImageUrl })),
+                  )
+                }
+              />
               <div className="space-y-2">
                 <Label>Tema da capa</Label>
                 <select className={inputSelectClassName} value={newsDraft.coverTone} onChange={(e) => setNewsDraft((prev) => ({ ...prev, coverTone: e.target.value }))}>
@@ -1117,7 +1210,9 @@ const AdminPage = () => {
               <Textarea className="min-h-[220px]" value={newsDraft.content} onChange={(e) => setNewsDraft((prev) => ({ ...prev, content: e.target.value }))} />
             </div>
             <DialogFooter>
-              <Button type="submit" disabled={saveNewsMutation.isPending}>Salvar noticia</Button>
+              <Button type="submit" disabled={saveNewsMutation.isPending || isUploadingMedia}>
+                {isUploadingMedia ? "Enviando imagem..." : "Salvar noticia"}
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -1127,7 +1222,7 @@ const AdminPage = () => {
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>{galleryDraft.id ? "Editar item da galeria" : "Novo item da galeria"}</DialogTitle>
-            <DialogDescription>Use imagem por URL ou apenas um tema visual de capa.</DialogDescription>
+            <DialogDescription>Use imagem por URL, envie um arquivo ou deixe apenas um tema visual de capa.</DialogDescription>
           </DialogHeader>
           <form className="grid gap-4" onSubmit={submitGallery}>
             <div className="grid gap-4 md:grid-cols-2">
@@ -1139,10 +1234,17 @@ const AdminPage = () => {
                 <Label>Categoria</Label>
                 <Input value={galleryDraft.category} onChange={(e) => setGalleryDraft((prev) => ({ ...prev, category: e.target.value }))} />
               </div>
-              <div className="space-y-2">
-                <Label>Imagem por URL</Label>
-                <Input value={galleryDraft.imageUrl} onChange={(e) => setGalleryDraft((prev) => ({ ...prev, imageUrl: e.target.value }))} />
-              </div>
+              <MediaUploadField
+                label="Imagem"
+                value={galleryDraft.imageUrl}
+                disabled={isUploadingMedia}
+                onUrlChange={(imageUrl) => setGalleryDraft((prev) => ({ ...prev, imageUrl }))}
+                onFileChange={(event) =>
+                  void handleImageFileUpload(event, "gallery", (imageUrl) =>
+                    setGalleryDraft((prev) => ({ ...prev, imageUrl })),
+                  )
+                }
+              />
               <div className="space-y-2">
                 <Label>Tema da capa</Label>
                 <select className={inputSelectClassName} value={galleryDraft.coverTone} onChange={(e) => setGalleryDraft((prev) => ({ ...prev, coverTone: e.target.value }))}>
@@ -1172,7 +1274,9 @@ const AdminPage = () => {
               <Textarea value={galleryDraft.caption} onChange={(e) => setGalleryDraft((prev) => ({ ...prev, caption: e.target.value }))} />
             </div>
             <DialogFooter>
-              <Button type="submit" disabled={saveGalleryMutation.isPending}>Salvar item</Button>
+              <Button type="submit" disabled={saveGalleryMutation.isPending || isUploadingMedia}>
+                {isUploadingMedia ? "Enviando imagem..." : "Salvar item"}
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -1253,10 +1357,17 @@ const AdminPage = () => {
                 <Label>Autor</Label>
                 <Input value={workDraft.author} onChange={(e) => setWorkDraft((prev) => ({ ...prev, author: e.target.value }))} />
               </div>
-              <div className="space-y-2">
-                <Label>Imagem por URL</Label>
-                <Input value={workDraft.coverImageUrl} onChange={(e) => setWorkDraft((prev) => ({ ...prev, coverImageUrl: e.target.value }))} />
-              </div>
+              <MediaUploadField
+                label="Imagem"
+                value={workDraft.coverImageUrl}
+                disabled={isUploadingMedia}
+                onUrlChange={(coverImageUrl) => setWorkDraft((prev) => ({ ...prev, coverImageUrl }))}
+                onFileChange={(event) =>
+                  void handleImageFileUpload(event, "works", (coverImageUrl) =>
+                    setWorkDraft((prev) => ({ ...prev, coverImageUrl })),
+                  )
+                }
+              />
               <div className="space-y-2">
                 <Label>Tema da capa</Label>
                 <select className={inputSelectClassName} value={workDraft.coverTone} onChange={(e) => setWorkDraft((prev) => ({ ...prev, coverTone: e.target.value }))}>
@@ -1290,7 +1401,9 @@ const AdminPage = () => {
               <Textarea className="min-h-[220px]" value={workDraft.content} onChange={(e) => setWorkDraft((prev) => ({ ...prev, content: e.target.value }))} />
             </div>
             <DialogFooter>
-              <Button type="submit" disabled={saveWorkMutation.isPending}>Salvar trabalho</Button>
+              <Button type="submit" disabled={saveWorkMutation.isPending || isUploadingMedia}>
+                {isUploadingMedia ? "Enviando imagem..." : "Salvar trabalho"}
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>
