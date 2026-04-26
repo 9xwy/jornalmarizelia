@@ -380,7 +380,8 @@ export async function fetchSupabaseSetupStatus(): Promise<SupabaseSetupStatus> {
       configured: false,
       healthy: false,
       missingSchema: false,
-      message: "Supabase ainda nao foi configurado no ambiente local.",
+      message:
+        "Supabase ainda nao foi configurado neste ambiente. Configure NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY.",
     };
   }
 
