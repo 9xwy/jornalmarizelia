@@ -420,7 +420,3 @@ grant execute on function public.vote_for_poll_option(uuid, uuid, text) to anon,
 
 comment on table public.allowed_admin_emails is 'Adicione aqui os emails que podem usar o painel admin.';
 comment on function public.vote_for_poll_option(uuid, uuid, text) is 'Executa um voto publico com protecao por token local.';
-
-insert into public.allowed_admin_emails (email, label)
-values ('scrylocked@proton.me', 'Administrador principal')
-on conflict (email) do nothing;

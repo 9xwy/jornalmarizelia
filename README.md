@@ -58,13 +58,15 @@ Para producao, configure apenas as variaveis do Supabase na plataforma de deploy
 1. Crie um projeto no Supabase.
 2. Rode o arquivo `supabase/schema.sql` no SQL Editor.
 3. Crie o usuario administrador em Supabase Auth.
-4. Libere o email do administrador:
+4. Libere exatamente o mesmo email usado para entrar no Supabase Auth:
 
 ```sql
 insert into public.allowed_admin_emails (email, label)
 values ('seu-email@exemplo.com', 'Administrador principal')
 on conflict (email) do nothing;
 ```
+
+Se o email logado no painel nao estiver nessa tabela, o Supabase bloqueia publicacoes e edicoes pelas regras de seguranca.
 
 ## Scripts
 

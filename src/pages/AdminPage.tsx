@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
+import { ZodError } from "zod";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -76,6 +77,44 @@ const inputSelectClassName =
   "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2";
 
 function getErrorMessage(error: unknown) {
+  if (error instanceof ZodError) {
+    const labels: Record<string, string> = {
+      author: "Autor",
+      caption: "Legenda",
+      category: "Categoria",
+      closesAt: "Data de encerramento",
+      content: "Conteudo",
+      description: "Descricao",
+      eventDate: "Data",
+      excerpt: "Resumo",
+      imageUrl: "Imagem",
+      label: "Opcao",
+      location: "Local",
+      question: "Pergunta",
+      slug: "Slug",
+      summary: "Resumo",
+      title: "Titulo",
+      workType: "Tipo",
+    };
+
+    return error.issues
+      .map((issue) => {
+        const field = String(issue.path.at(-1) ?? issue.path[0] ?? "campo");
+        const label = labels[field] ?? field;
+
+        if (issue.code === "too_small" && issue.type === "string") {
+          return `${label} precisa ter pelo menos ${issue.minimum} caracteres.`;
+        }
+
+        if (issue.code === "too_big" && issue.type === "string") {
+          return `${label} pode ter no maximo ${issue.maximum} caracteres.`;
+        }
+
+        return `${label}: ${issue.message}`;
+      })
+      .join(" ");
+  }
+
   if (error instanceof Error) {
     return error.message;
   }
